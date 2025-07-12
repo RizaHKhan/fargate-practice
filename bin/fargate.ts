@@ -3,7 +3,6 @@ import { App } from "aws-cdk-lib";
 import "dotenv/config";
 import { SetupStack } from "../lib/setup-stack";
 import { NetworkingStack } from "../lib/networking-stack";
-import { RepositoryStack } from "../lib/repository-stack";
 import { FargateServiceStack } from "../lib/fargate-service-stack";
 
 const app = new App();
@@ -16,19 +15,16 @@ const env = {
 
 const secretStack = new SetupStack(app, "SetupStack", {
   githubToken: process.env.GITHUB_TOKEN,
+  env
 });
 
 const networkStack = new NetworkingStack(app, "NetworkingStack", {
   env,
 });
 
-const repositoryStack = new RepositoryStack(app, "RepositoryStack", {
-  secret: secretStack.secret,
-});
-
 new FargateServiceStack(app, "FargateServiceStack", {
   vpc: networkStack.vpc,
-  repository: repositoryStack.repository,
+  secret: secretStack.secret,
   env
 });
 
