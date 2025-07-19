@@ -21,6 +21,7 @@ import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import {
   CompositePrincipal,
+  Effect,
   ManagedPolicy,
   PolicyDocument,
   PolicyStatement,
@@ -40,7 +41,7 @@ export class FargateServiceStack extends Stack {
     super(scope, id, props);
 
     const repository = new Repository(this, "FargateRepository", {
-      repositoryName: "fargate-repository",
+      repositoryName: "nginx-fargate",
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
@@ -80,7 +81,7 @@ export class FargateServiceStack extends Stack {
         new GitHubSourceAction({
           actionName: "Source",
           owner: "RizaHKhan",
-          repo: "assessment-jsi",
+          repo: "nginx-fargate",
           branch: "master",
           oauthToken: props.secret.secretValue,
           output: sourceArtifact,
@@ -145,25 +146,59 @@ export class FargateServiceStack extends Stack {
       clusterName: "FargateCluster",
     });
 
+    const executionRole = new Role(this, "FargateTaskExecutionRole", {
+      assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AmazonECSTaskExecutionRolePolicy",
+        ),
+        ManagedPolicy.fromAwsManagedPolicyName(
+          "AmazonEC2ContainerRegistryReadOnly",
+        ),
+        ManagedPolicy.fromAwsManagedPolicyName(
+          "AmazonSSMManagedInstanceCore", // Enables ECS Exec
+        ),
+      ],
+    });
+
+    executionRole.addToPolicy(
+      new PolicyStatement({
+        actions: ["ecs:ExecuteCommand", "ecs:DescribeTasks"],
+        resources: ["*"], // For least privilege, restrict to your ECS resources
+      }),
+    );
+
+    const taskRole = new Role(this, "TaskRole", {
+      assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
+    });
+
+    // Add permissions required for ECS Exec
+    taskRole.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel",
+        ],
+        resources: ["*"],
+      }),
+    );
+
     const taskDefinition = new FargateTaskDefinition(this, "TaskDefinition", {
       memoryLimitMiB: 512,
       cpu: 256,
-      executionRole: new Role(this, "FargateTaskExecutionRole", {
-        assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
-        managedPolicies: [
-          ManagedPolicy.fromAwsManagedPolicyName(
-            "service-role/AmazonECSTaskExecutionRolePolicy",
-          ),
-          ManagedPolicy.fromAwsManagedPolicyName(
-            "AmazonEC2ContainerRegistryReadOnly",
-          ),
-        ],
-      }),
+      executionRole,
+      taskRole,
     });
 
     taskDefinition.addContainer("AppContainer", {
       image: ContainerImage.fromEcrRepository(repository),
-      portMappings: [{ containerPort: 3000 }],
+      portMappings: [{ containerPort: 80 }],
+      environment: {
+        FARGATE_ENV: "from fargate service stack",
+      },
     });
 
     const service = new ApplicationLoadBalancedFargateService(this, "Service", {
@@ -174,17 +209,20 @@ export class FargateServiceStack extends Stack {
       desiredCount: 1,
       listenerPort: 80,
       taskSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
+      enableExecuteCommand: true
     });
 
-    pipeline.addStage({
-      stageName: "DeployToFargate",
-      actions: [
-        new EcsDeployAction({
-          actionName: "DeployToFargate",
-          service: service.service,
-          input: buildArtifact,
-        }),
-      ],
-    });
+    service.node.addDependency(pipeline);
+
+    // pipeline.addStage({
+    //   stageName: "DeployToFargate",
+    //   actions: [
+    //     new EcsDeployAction({
+    //       actionName: "DeployToFargate",
+    //       service: service.service,
+    //       input: buildArtifact,
+    //     }),
+    //   ],
+    // });
   }
 }
