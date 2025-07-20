@@ -209,20 +209,7 @@ export class FargateServiceStack extends Stack {
       desiredCount: 1,
       listenerPort: 80,
       taskSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
-      enableExecuteCommand: true
+      enableExecuteCommand: true,
     });
-
-    service.node.addDependency(pipeline);
-
-    // pipeline.addStage({
-    //   stageName: "DeployToFargate",
-    //   actions: [
-    //     new EcsDeployAction({
-    //       actionName: "DeployToFargate",
-    //       service: service.service,
-    //       input: buildArtifact,
-    //     }),
-    //   ],
-    // });
   }
 }
