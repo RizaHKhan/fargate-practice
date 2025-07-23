@@ -12,3 +12,17 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app.
 * `npx cdk deploy`  deploy this stack to your default AWS account/region
 * `npx cdk diff`    compare deployed stack with current state
 * `npx cdk synth`   emits the synthesized CloudFormation template
+
+## Pushing to Remote
+
+Nginx:
+```bash
+docker tag nginx-fargate-server:latest 713287342529.dkr.ecr.us-east-1.amazonaws.com/server:latest
+docker push 713287342529.dkr.ecr.us-east-1.amazonaws.com/server:latest
+```
+
+App:
+```bash
+docker tag nginx-fargate-app:latest 713287342529.dkr.ecr.us-east-1.amazonaws.com/app:latest
+docker push 713287342529.dkr.ecr.us-east-1.amazonaws.com/app:latest
+```

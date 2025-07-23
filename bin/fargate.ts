@@ -13,10 +13,10 @@ const env = {
   githubToken: process.env.GITHUB_TOKEN,
 };
 
-const secretStack = new SetupStack(app, "SetupStack", {
-  githubToken: process.env.GITHUB_TOKEN,
-  env
-});
+// const secretStack = new SetupStack(app, "SetupStack", {
+//   githubToken: process.env.GITHUB_TOKEN,
+//   env
+// });
 
 const networkStack = new NetworkingStack(app, "NetworkingStack", {
   env,
@@ -24,7 +24,6 @@ const networkStack = new NetworkingStack(app, "NetworkingStack", {
 
 new FargateServiceStack(app, "FargateServiceStack", {
   vpc: networkStack.vpc,
-  secret: secretStack.secret,
   env
 });
 
