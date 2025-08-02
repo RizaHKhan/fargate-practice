@@ -1,15 +1,4 @@
-import { CfnOutput, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
-import {
-  BuildSpec,
-  LinuxBuildImage,
-  PipelineProject,
-} from "aws-cdk-lib/aws-codebuild";
-import { Artifact, Pipeline } from "aws-cdk-lib/aws-codepipeline";
-import {
-  CodeBuildAction,
-  EcsDeployAction,
-  GitHubSourceAction,
-} from "aws-cdk-lib/aws-codepipeline-actions";
+import { RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import { SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { Repository } from "aws-cdk-lib/aws-ecr";
 import {
@@ -18,18 +7,14 @@ import {
   FargateTaskDefinition,
   MountPoint,
 } from "aws-cdk-lib/aws-ecs";
-import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import {
-  CompositePrincipal,
   Effect,
   ManagedPolicy,
-  PolicyDocument,
   PolicyStatement,
   Role,
   ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
-import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
 interface FargateServiceStackProps extends StackProps {
