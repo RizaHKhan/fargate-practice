@@ -1,4 +1,4 @@
-import { CfnOutput, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
+import { RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import {
   BuildSpec,
   LinuxBuildImage,
@@ -7,7 +7,6 @@ import {
 import { Artifact, Pipeline } from "aws-cdk-lib/aws-codepipeline";
 import {
   CodeBuildAction,
-  EcsDeployAction,
   GitHubSourceAction,
 } from "aws-cdk-lib/aws-codepipeline-actions";
 import { SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
@@ -41,7 +40,7 @@ export class FargateServiceStack extends Stack {
     super(scope, id, props);
 
     const repository = new Repository(this, "FargateRepository", {
-      repositoryName: "nginx-fargate",
+      repositoryName: "laravel-app",
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
@@ -81,7 +80,7 @@ export class FargateServiceStack extends Stack {
         new GitHubSourceAction({
           actionName: "Source",
           owner: "RizaHKhan",
-          repo: "nginx-fargate",
+          repo: "laravel-fargate",
           branch: "master",
           oauthToken: props.secret.secretValue,
           output: sourceArtifact,
@@ -201,7 +200,7 @@ export class FargateServiceStack extends Stack {
       },
     });
 
-    const service = new ApplicationLoadBalancedFargateService(this, "Service", {
+    new ApplicationLoadBalancedFargateService(this, "Service", {
       cluster,
       taskDefinition,
       assignPublicIp: true,
