@@ -4,6 +4,7 @@ import "dotenv/config";
 import { SetupStack } from "../lib/setup-stack";
 import { NetworkingStack } from "../lib/networking-stack";
 import { FargateServiceStack } from "../lib/fargate-service-stack";
+import { PipelineStack } from "../lib/pipeline-stack";
 
 const app = new App();
 
@@ -15,16 +16,20 @@ const env = {
 
 const secretStack = new SetupStack(app, "SetupStack", {
   githubToken: process.env.GITHUB_TOKEN,
-  env
+  env,
 });
 
 const networkStack = new NetworkingStack(app, "NetworkingStack", {
   env,
 });
 
-new FargateServiceStack(app, "FargateServiceStack", {
-  vpc: networkStack.vpc,
+const pipelineStack = new PipelineStack(app, "PipelineStack", {
   secret: secretStack.secret,
-  env
+  env,
 });
 
+new FargateServiceStack(app, "FargateServiceStack", {
+  vpc: networkStack.vpc,
+  repository: pipelineStack.repository,
+  env,
+});
