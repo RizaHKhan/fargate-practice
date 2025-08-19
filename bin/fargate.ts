@@ -23,6 +23,7 @@ const repositoryStack = new RepositoryStack(app, "RepositoryStack", {
 
 new FargateServiceStack(app, "FargateServiceStack", {
   vpc: networkStack.vpc,
-  repository: repositoryStack.repository,
+  appRepo: repositoryStack.appRepo,
+  serverRepo: repositoryStack.serverRepo,
   env,
 });

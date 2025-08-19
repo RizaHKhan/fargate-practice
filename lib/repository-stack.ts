@@ -5,12 +5,18 @@ import { Construct } from "constructs";
 interface RepositoryStackProps extends StackProps {}
 
 export class RepositoryStack extends Stack {
-  repository: Repository;
+  appRepo: Repository;
+  serverRepo: Repository;
   constructor(scope: Construct, id: string, props: RepositoryStackProps) {
     super(scope, id, props);
 
-    this.repository = new Repository(this, "FargateRepository", {
-      repositoryName: "laravel-app",
+    this.appRepo = new Repository(this, "FargateAppRepository", {
+      repositoryName: "app",
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    this.serverRepo = new Repository(this, "FargateServerRepository", {
+      repositoryName: "server",
       removalPolicy: RemovalPolicy.DESTROY,
     });
   }

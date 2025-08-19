@@ -36,13 +36,13 @@ docker push 713287342529.dkr.ecr.us-east-1.amazonaws.com/app:latest
 
 ```bash
 aws ecs execute-command --cluster FargateCluster \
---task arn:aws:ecs:us-east-1:713287342529:task/FargateCluster/87c9939d7fc04348816998c8c3339d84 \
+--task arn:aws:ecs:us-east-1:713287342529:task/FargateCluster/4a2d9087e6154aaa9a1c4f66919f3c53 \
 --container ServerContainer \
 --command "/bin/bash" \
 --interactive
 
 aws ecs execute-command --cluster FargateCluster \
---task arn:aws:ecs:us-east-1:713287342529:task/FargateCluster/241ec6c61563453393fce417c824d0c0 |
+--task arn:aws:ecs:us-east-1:713287342529:task/FargateCluster/4a2d9087e6154aaa9a1c4f66919f3c53 \
 --container AppContainer \
 --command "/bin/bash" \
 --interactive
@@ -57,3 +57,8 @@ docker run -d --rm -p 9000:9000 713287342529.dkr.ecr.us-east-1.amazonaws.com/app
 docker pull 713287342529.dkr.ecr.us-east-1.amazonaws.com/server:latest
 docker run -d --rm -p 80:80 713287342529.dkr.ecr.us-east-1.amazonaws.com/server:latest
 ```
+
+## Steps
+
+[ ] Same setup, except use Github actions to perform all of the CICD work. 
+[ ] Build the final service in the final stack because we will need the ECR containers built out for use

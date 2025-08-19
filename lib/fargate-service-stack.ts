@@ -18,7 +18,8 @@ import { Construct } from "constructs";
 
 interface FargateServiceStackProps extends StackProps {
   vpc: Vpc;
-  repository: Repository;
+  appRepo: Repository;
+  serverRepo: Repository;
 }
 
 export class FargateServiceStack extends Stack {
@@ -77,12 +78,18 @@ export class FargateServiceStack extends Stack {
       taskRole,
     });
 
-    taskDefinition.addContainer("AppContainer", {
-      image: ContainerImage.fromEcrRepository(props.repository),
+    taskDefinition.addVolume({
+      name: "data",
+    });
+
+    taskDefinition.addContainer("ServerContainer", {
+      image: ContainerImage.fromEcrRepository(props.serverRepo),
       portMappings: [{ containerPort: 80 }],
-      environment: {
-        FARGATE_ENV: "from fargate service stack",
-      },
+    });
+
+    taskDefinition.addContainer("AppContainer", {
+      image: ContainerImage.fromEcrRepository(props.appRepo),
+      portMappings: [{ containerPort: 9000 }],
     });
 
     new ApplicationLoadBalancedFargateService(this, "Service", {
