@@ -5,6 +5,8 @@ import {
   Cluster,
   ContainerImage,
   FargateTaskDefinition,
+  LogDrivers,
+  MountPoint,
 } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import {
@@ -79,18 +81,35 @@ export class FargateServiceStack extends Stack {
     });
 
     taskDefinition.addVolume({
-      name: "data",
+      name: "www-data",
     });
 
-    taskDefinition.addContainer("ServerContainer", {
+    const serverContainer = taskDefinition.addContainer("ServerContainer", {
       image: ContainerImage.fromEcrRepository(props.serverRepo),
       portMappings: [{ containerPort: 80 }],
+      logging: LogDrivers.awsLogs({
+        streamPrefix: "server",
+        logRetention: 7,
+      }),
     });
 
-    taskDefinition.addContainer("AppContainer", {
+    const appContainer = taskDefinition.addContainer("AppContainer", {
       image: ContainerImage.fromEcrRepository(props.appRepo),
       portMappings: [{ containerPort: 9000 }],
+      logging: LogDrivers.awsLogs({
+        streamPrefix: "php",
+        logRetention: 7,
+      }),
     });
+
+    const mountPoint: MountPoint = {
+      sourceVolume: "www-data",
+      containerPath: "/var/www/html",
+      readOnly: false,
+    };
+
+    appContainer.addMountPoints(mountPoint);
+    serverContainer.addMountPoints(mountPoint);
 
     new ApplicationLoadBalancedFargateService(this, "Service", {
       cluster,
