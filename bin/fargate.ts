@@ -12,7 +12,6 @@ const env = {
   region: process.env.CDK_DEFAULT_REGION,
 };
 
-
 const networkStack = new NetworkingStack(app, "NetworkingStack", {
   env,
 });
@@ -23,7 +22,9 @@ const repositoryStack = new RepositoryStack(app, "RepositoryStack", {
 
 new FargateServiceStack(app, "FargateServiceStack", {
   vpc: networkStack.vpc,
-  appRepo: repositoryStack.appRepo,
-  serverRepo: repositoryStack.serverRepo,
+  app1Repo: repositoryStack.app1Repo,
+  app2Repo: repositoryStack.app2Repo,
+  phpRepo: repositoryStack.phpRepo,
+  proxyRepo: repositoryStack.proxyRepo,
   env,
 });

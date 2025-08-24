@@ -6,7 +6,6 @@ import {
   ContainerImage,
   FargateTaskDefinition,
   LogDrivers,
-  MountPoint,
 } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import {
@@ -20,8 +19,10 @@ import { Construct } from "constructs";
 
 interface FargateServiceStackProps extends StackProps {
   vpc: Vpc;
-  appRepo: Repository;
-  serverRepo: Repository;
+  app1Repo: Repository;
+  app2Repo: Repository;
+  phpRepo: Repository;
+  proxyRepo: Repository;
 }
 
 export class FargateServiceStack extends Stack {
@@ -80,36 +81,42 @@ export class FargateServiceStack extends Stack {
       taskRole,
     });
 
-    taskDefinition.addVolume({
-      name: "www-data",
-    });
 
-    const serverContainer = taskDefinition.addContainer("ServerContainer", {
-      image: ContainerImage.fromEcrRepository(props.serverRepo),
+    taskDefinition.addContainer("ProxyContainer", {
+      image: ContainerImage.fromEcrRepository(props.proxyRepo),
       portMappings: [{ containerPort: 80 }],
       logging: LogDrivers.awsLogs({
-        streamPrefix: "server",
+        streamPrefix: "proxy",
         logRetention: 7,
       }),
     });
 
-    const appContainer = taskDefinition.addContainer("AppContainer", {
-      image: ContainerImage.fromEcrRepository(props.appRepo),
-      portMappings: [{ containerPort: 9000 }],
+    taskDefinition.addContainer("PhpContainer", {
+      image: ContainerImage.fromEcrRepository(props.phpRepo),
+      portMappings: [{ containerPort: 8080 }],
       logging: LogDrivers.awsLogs({
         streamPrefix: "php",
         logRetention: 7,
       }),
     });
 
-    const mountPoint: MountPoint = {
-      sourceVolume: "www-data",
-      containerPath: "/var/www/html",
-      readOnly: false,
-    };
+    taskDefinition.addContainer("App1Container", {
+      image: ContainerImage.fromEcrRepository(props.app1Repo),
+      portMappings: [{ containerPort: 3000 }],
+      logging: LogDrivers.awsLogs({
+        streamPrefix: "app1",
+        logRetention: 7,
+      }),
+    });
 
-    appContainer.addMountPoints(mountPoint);
-    serverContainer.addMountPoints(mountPoint);
+    taskDefinition.addContainer("App2Container", {
+      image: ContainerImage.fromEcrRepository(props.app2Repo),
+      portMappings: [{ containerPort: 3001 }],
+      logging: LogDrivers.awsLogs({
+        streamPrefix: "app2",
+        logRetention: 7,
+      }),
+    });
 
     new ApplicationLoadBalancedFargateService(this, "Service", {
       cluster,
