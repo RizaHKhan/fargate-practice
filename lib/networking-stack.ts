@@ -36,6 +36,11 @@ export class NetworkingStack extends Stack {
           name: "AppSubet",
           subnetType: SubnetType.PRIVATE_WITH_EGRESS,
         },
+        {
+          cidrMask: 24,
+          name: "DbSubet",
+          subnetType: SubnetType.PRIVATE_ISOLATED,
+        },
       ],
       natGateways: 1,
       enableDnsHostnames: true,

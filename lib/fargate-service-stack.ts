@@ -6,6 +6,7 @@ import {
   ContainerImage,
   FargateTaskDefinition,
   LogDrivers,
+  Secret,
 } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
 import {
@@ -19,35 +20,39 @@ import { Construct } from "constructs";
 
 interface FargateServiceStackProps extends StackProps {
   vpc: Vpc;
-  app1Repo: Repository;
-  app2Repo: Repository;
-  phpRepo: Repository;
-  proxyRepo: Repository;
+  prefix: string;
+  repo: Repository;
+  secrets: { [key: string]: Secret };
+  environment?: { [key: string]: string };
 }
 
 export class FargateServiceStack extends Stack {
   constructor(scope: Construct, id: string, props: FargateServiceStackProps) {
     super(scope, id, props);
 
-    const cluster = new Cluster(this, "FargateCluster", {
+    const cluster = new Cluster(this, `FargateCluster-${props.prefix}`, {
       vpc: props.vpc,
-      clusterName: "FargateCluster",
+      clusterName: `FargateCluster-${props.prefix}`,
     });
 
-    const executionRole = new Role(this, "FargateTaskExecutionRole", {
-      assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
-      managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName(
-          "service-role/AmazonECSTaskExecutionRolePolicy",
-        ),
-        ManagedPolicy.fromAwsManagedPolicyName(
-          "AmazonEC2ContainerRegistryReadOnly",
-        ),
-        ManagedPolicy.fromAwsManagedPolicyName(
-          "AmazonSSMManagedInstanceCore", // Enables ECS Exec
-        ),
-      ],
-    });
+    const executionRole = new Role(
+      this,
+      `FargateTaskExecutionRole-${props.prefix}`,
+      {
+        assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
+        managedPolicies: [
+          ManagedPolicy.fromAwsManagedPolicyName(
+            "service-role/AmazonECSTaskExecutionRolePolicy",
+          ),
+          ManagedPolicy.fromAwsManagedPolicyName(
+            "AmazonEC2ContainerRegistryReadOnly",
+          ),
+          ManagedPolicy.fromAwsManagedPolicyName(
+            "AmazonSSMManagedInstanceCore", // Enables ECS Exec
+          ),
+        ],
+      },
+    );
 
     executionRole.addToPolicy(
       new PolicyStatement({
@@ -56,7 +61,7 @@ export class FargateServiceStack extends Stack {
       }),
     );
 
-    const taskRole = new Role(this, "TaskRole", {
+    const taskRole = new Role(this, `TaskRole-${props.prefix}`, {
       assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
     });
 
@@ -74,51 +79,29 @@ export class FargateServiceStack extends Stack {
       }),
     );
 
-    const taskDefinition = new FargateTaskDefinition(this, "TaskDefinition", {
-      memoryLimitMiB: 512,
-      cpu: 256,
-      executionRole,
-      taskRole,
-    });
+    const taskDefinition = new FargateTaskDefinition(
+      this,
+      `TaskDefinition-${props.prefix}`,
+      {
+        memoryLimitMiB: 512,
+        cpu: 256,
+        executionRole,
+        taskRole,
+      },
+    );
 
-
-    taskDefinition.addContainer("ProxyContainer", {
-      image: ContainerImage.fromEcrRepository(props.proxyRepo),
+    taskDefinition.addContainer(`${props.prefix}-Container`, {
+      image: ContainerImage.fromEcrRepository(props.repo),
       portMappings: [{ containerPort: 80 }],
+      environment: props.environment,
+      secrets: props.secrets,
       logging: LogDrivers.awsLogs({
-        streamPrefix: "proxy",
+        streamPrefix: props.prefix,
         logRetention: 7,
       }),
     });
 
-    taskDefinition.addContainer("PhpContainer", {
-      image: ContainerImage.fromEcrRepository(props.phpRepo),
-      portMappings: [{ containerPort: 8080 }],
-      logging: LogDrivers.awsLogs({
-        streamPrefix: "php",
-        logRetention: 7,
-      }),
-    });
-
-    taskDefinition.addContainer("App1Container", {
-      image: ContainerImage.fromEcrRepository(props.app1Repo),
-      portMappings: [{ containerPort: 3000 }],
-      logging: LogDrivers.awsLogs({
-        streamPrefix: "app1",
-        logRetention: 7,
-      }),
-    });
-
-    taskDefinition.addContainer("App2Container", {
-      image: ContainerImage.fromEcrRepository(props.app2Repo),
-      portMappings: [{ containerPort: 3001 }],
-      logging: LogDrivers.awsLogs({
-        streamPrefix: "app2",
-        logRetention: 7,
-      }),
-    });
-
-    new ApplicationLoadBalancedFargateService(this, "Service", {
+    new ApplicationLoadBalancedFargateService(this, `Service-${props.prefix}`, {
       cluster,
       taskDefinition,
       assignPublicIp: true,
