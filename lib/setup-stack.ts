@@ -1,22 +1,24 @@
-import { PhysicalName, SecretValue, Stack, StackProps } from "aws-cdk-lib";
-import { Secret } from "aws-cdk-lib/aws-secretsmanager";
-import { Construct } from "constructs";
+import { SecretValue, Stack, StackProps } from 'aws-cdk-lib'
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager'
+import { Construct } from 'constructs'
 
 interface SetupStackProps extends StackProps {
-  githubToken?: string;
+    githubToken?: string
 }
 
 export class SetupStack extends Stack {
-  secret: Secret;
+    secret: Secret
 
-  constructor(scope: Construct, id: string, props: SetupStackProps) {
-    super(scope, id, props);
+    constructor(scope: Construct, id: string, props: SetupStackProps) {
+        super(scope, id, props)
 
-    if (props.githubToken) {
-      this.secret = new Secret(this, "GithubToken", {
-        secretStringValue: SecretValue.unsafePlainText(props.githubToken),
-        secretName: 'GithubToken', // Choose a unique name
-      });
+        if (props.githubToken) {
+            this.secret = new Secret(this, 'GithubToken', {
+                secretStringValue: SecretValue.unsafePlainText(
+                    props.githubToken
+                ),
+                secretName: 'GithubToken', // Choose a unique name
+            })
+        }
     }
-  }
 }
