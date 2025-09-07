@@ -75,11 +75,14 @@ export class NetworkingStack extends Stack {
             'Allow HTTP traffic from anywhere'
         )
 
-        this.loadBalancer = new ApplicationLoadBalancer(this, 'FargateALB', {
-            vpc: this.vpc,
-            internetFacing: true,
-            securityGroup: this.lbSecurityGroup,
-            vpcSubnets: { subnetType: SubnetType.PUBLIC },
-        })
+        this.loadBalancer = new ApplicationLoadBalancer(
+            this,
+            'FargateApplicationLoadBalancer',
+            {
+                vpc: this.vpc,
+                internetFacing: true,
+                securityGroup: this.lbSecurityGroup,
+            }
+        )
     }
 }

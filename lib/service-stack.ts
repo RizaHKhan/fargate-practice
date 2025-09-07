@@ -24,7 +24,7 @@ export class FargateServiceStack extends Stack {
     constructor(scope: Construct, id: string, props: FargateServiceStackProps) {
         super(scope, id, props)
 
-        const service = new FargateService(this, `Service-${props.prefix}`, {
+        this.service = new FargateService(this, `Service-${props.prefix}`, {
             cluster: props.cluster,
             taskDefinition: props.taskDefinition,
             desiredCount: 1,

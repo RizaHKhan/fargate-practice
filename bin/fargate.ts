@@ -170,24 +170,30 @@ const appTask = new TaskStack(app, 'AppStack', {
 
 // make a load balancer here
 
-new FargateServiceStack(
-    app,
-    'FargateSiteServiceStack',
-    {
-        env,
-        cluster: clusterStack.cluster,
-        loadBalancer: networkStack.loadBalancer,
-        prefix: 'site',
-        repo: siteRepoStack.repo,
-        taskDefinition: siteTask.taskDefinition,
-    }
-)
+const siteService = new FargateServiceStack(app, 'FargateSiteServiceStack', {
+    env,
+    cluster: clusterStack.cluster,
+    loadBalancer: networkStack.loadBalancer,
+    prefix: 'site',
+    repo: siteRepoStack.repo,
+    taskDefinition: siteTask.taskDefinition,
+})
 
-new FargateServiceStack(app, 'FargateAppServiceStack', {
+const appService = new FargateServiceStack(app, 'FargateAppServiceStack', {
     prefix: 'app',
     repo: appRepoStack.repo,
     env,
     cluster: clusterStack.cluster,
     taskDefinition: appTask.taskDefinition,
     loadBalancer: networkStack.loadBalancer,
+})
+
+const listener = networkStack.loadBalancer.addListener('Listener', {
+    port: 80,
+    open: true,
+})
+
+listener.addTargets('SiteTarget', {
+    port: 80,
+    targets: [siteService.service],
 })
