@@ -5,14 +5,8 @@ import {
     FargateTaskDefinition,
     LogDrivers,
 } from 'aws-cdk-lib/aws-ecs'
-import {
-    Effect,
-    ManagedPolicy,
-    PolicyStatement,
-    Role,
-    ServicePrincipal,
-} from 'aws-cdk-lib/aws-iam'
 import { Construct } from 'constructs'
+
 
 interface TaskStackProps extends StackProps {
     prefix: string
@@ -27,58 +21,12 @@ export class TaskStack extends Stack {
     constructor(scope: Construct, id: string, props: TaskStackProps) {
         super(scope, id, props)
 
-        const executionRole = new Role(
-            this,
-            `FargateTaskExecutionRole-${props.prefix}`,
-            {
-                assumedBy: new ServicePrincipal('ecs-tasks.amazonaws.com'),
-                managedPolicies: [
-                    ManagedPolicy.fromAwsManagedPolicyName(
-                        'service-role/AmazonECSTaskExecutionRolePolicy'
-                    ),
-                    ManagedPolicy.fromAwsManagedPolicyName(
-                        'AmazonEC2ContainerRegistryReadOnly'
-                    ),
-                    ManagedPolicy.fromAwsManagedPolicyName(
-                        'AmazonSSMManagedInstanceCore' // Enables ECS Exec
-                    ),
-                ],
-            }
-        )
-
-        executionRole.addToPolicy(
-            new PolicyStatement({
-                actions: ['ecs:ExecuteCommand', 'ecs:DescribeTasks'],
-                resources: ['*'], // For least privilege, restrict to your ECS resources
-            })
-        )
-
-        const taskRole = new Role(this, `TaskRole-${props.prefix}`, {
-            assumedBy: new ServicePrincipal('ecs-tasks.amazonaws.com'),
-        })
-
-        // Add permissions required for ECS Exec
-        taskRole.addToPolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: [
-                    'ssmmessages:CreateControlChannel',
-                    'ssmmessages:CreateDataChannel',
-                    'ssmmessages:OpenControlChannel',
-                    'ssmmessages:OpenDataChannel',
-                ],
-                resources: ['*'],
-            })
-        )
-
         this.taskDefinition = new FargateTaskDefinition(
             this,
             `TaskDefinition-${props.prefix}`,
             {
                 memoryLimitMiB: 512,
                 cpu: 256,
-                executionRole,
-                taskRole,
             }
         )
 
@@ -89,7 +37,6 @@ export class TaskStack extends Stack {
             secrets: props.secrets,
             logging: LogDrivers.awsLogs({
                 streamPrefix: props.prefix,
-                logRetention: 7,
             }),
         })
     }

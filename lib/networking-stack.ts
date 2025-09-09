@@ -16,7 +16,9 @@ import { Construct } from 'constructs'
 export class NetworkingStack extends Stack {
     vpc: Vpc
     dbSecurityGroup: SecurityGroup
-    lbSecurityGroup: SecurityGroup
+    siteSg: SecurityGroup
+    appSg: SecurityGroup
+    lbSg: SecurityGroup
     loadBalancer: ApplicationLoadBalancer
 
     constructor(scope: Construct, id: string, props?: StackProps) {
@@ -51,7 +53,16 @@ export class NetworkingStack extends Stack {
             enableDnsSupport: true,
         })
 
-        // Database secruity group
+        this.siteSg = new SecurityGroup(this, 'WordpressServiceSG', {
+            vpc: this.vpc,
+            description: 'Security group for WordPress Fargate service',
+        })
+
+        this.appSg = new SecurityGroup(this, 'LaravelServiceSG', {
+            vpc: this.vpc,
+            description: 'Security group for Laravel Fargate service',
+        })
+
         this.dbSecurityGroup = new SecurityGroup(this, 'DbSecurityGroup', {
             vpc: this.vpc,
             description: 'Security group for RDS instance',
@@ -63,25 +74,37 @@ export class NetworkingStack extends Stack {
             'Allow MySQL access from anywhere'
         )
 
-        // Load balancer
-        this.lbSecurityGroup = new SecurityGroup(this, 'LbSecurityGroup', {
+        this.dbSecurityGroup.addIngressRule(
+            this.siteSg,
+            Port.tcp(3306),
+            'Allow MySQL access from WordPress Fargate service'
+        )
+
+        this.dbSecurityGroup.addIngressRule(
+            this.appSg,
+            Port.tcp(3306),
+            'Allow MySQL access from Laravel Fargate service'
+        )
+
+        this.lbSg = new SecurityGroup(this, 'LbSecurityGroup', {
             vpc: this.vpc,
             description: 'Security group for ALB',
         })
 
-        this.lbSecurityGroup.addIngressRule(
+        this.lbSg.addIngressRule(
             Peer.anyIpv4(),
             Port.tcp(80),
             'Allow HTTP traffic from anywhere'
         )
 
+        // Load balancer
         this.loadBalancer = new ApplicationLoadBalancer(
             this,
             'FargateApplicationLoadBalancer',
             {
                 vpc: this.vpc,
                 internetFacing: true,
-                securityGroup: this.lbSecurityGroup,
+                securityGroup: this.lbSg,
             }
         )
     }

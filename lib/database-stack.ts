@@ -13,9 +13,12 @@ import {
     SubnetType,
     Vpc,
     SecurityGroup,
+    Instance,
+    AmazonLinuxImage,
+    AmazonLinuxGeneration,
 } from 'aws-cdk-lib/aws-ec2'
-import { CfnOutput } from 'aws-cdk-lib'
 import { ISecret } from 'aws-cdk-lib/aws-secretsmanager'
+import { ManagedPolicy, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam'
 
 interface DatabasetackProps extends StackProps {
     vpc: Vpc
@@ -25,6 +28,7 @@ interface DatabasetackProps extends StackProps {
 export class DatabaseStack extends Stack {
     db: DatabaseInstance
     secrets: ISecret | undefined
+    adminInstance: Instance
 
     constructor(scope: Construct, id: string, props: DatabasetackProps) {
         super(scope, id, props)
@@ -36,10 +40,10 @@ export class DatabaseStack extends Stack {
             instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.MICRO),
             vpc: props.vpc,
             vpcSubnets: {
-                subnetType: SubnetType.PUBLIC,
+                subnetType: SubnetType.PRIVATE_WITH_EGRESS, // Use PRIVATE_WITH_EGRESS for private subnets
             },
             credentials: Credentials.fromGeneratedSecret('khanr'),
-            publiclyAccessible: true,
+            publiclyAccessible: false, // Make DB private
             allocatedStorage: 20,
             databaseName: 'wordpress_db',
             removalPolicy: RemovalPolicy.DESTROY,
@@ -48,14 +52,26 @@ export class DatabaseStack extends Stack {
 
         this.secrets = this.db.secret!
 
-        new CfnOutput(this, 'DBEndpoint', {
-            value: this.db.dbInstanceEndpointAddress,
-            description: 'Database endpoint address',
+        const ssmRole = new Role(this, 'DbAdminInstanceRole', {
+            assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
+            managedPolicies: [
+                ManagedPolicy.fromAwsManagedPolicyName(
+                    'AmazonSSMManagedInstanceCore'
+                ),
+            ],
         })
 
-        new CfnOutput(this, 'DBPort', {
-            value: this.db.dbInstanceEndpointPort,
-            description: 'Database port',
+        this.adminInstance = new Instance(this, 'DbAdminInstance', {
+            vpc: props.vpc,
+            vpcSubnets: {
+                subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+            },
+            instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.MICRO),
+            machineImage: new AmazonLinuxImage({
+                generation: AmazonLinuxGeneration.AMAZON_LINUX_2,
+            }),
+            securityGroup: props.securityGroup, // Allows DB access
+            role: ssmRole,
         })
     }
 }

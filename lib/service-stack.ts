@@ -8,6 +8,7 @@ import {
 } from 'aws-cdk-lib/aws-elasticloadbalancingv2'
 import { FargateService } from 'aws-cdk-lib/aws-ecs'
 import { Construct } from 'constructs'
+import { SecurityGroup } from 'aws-cdk-lib/aws-ec2'
 
 interface FargateServiceStackProps extends StackProps {
     prefix: string
@@ -15,6 +16,7 @@ interface FargateServiceStackProps extends StackProps {
     cluster: Cluster
     taskDefinition: FargateTaskDefinition
     loadBalancer: ApplicationLoadBalancer
+    securityGroups: SecurityGroup[]
 }
 
 export class FargateServiceStack extends Stack {
@@ -28,6 +30,7 @@ export class FargateServiceStack extends Stack {
             cluster: props.cluster,
             taskDefinition: props.taskDefinition,
             desiredCount: 1,
+            securityGroups: props.securityGroups,
         })
     }
 }

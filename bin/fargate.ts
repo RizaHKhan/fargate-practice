@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { App } from 'aws-cdk-lib'
 import 'dotenv/config'
+import { DistroStack } from '../lib/distro-stack'
 import { NetworkingStack } from '../lib/networking-stack'
 import { FargateServiceStack } from '../lib/service-stack'
 import { RepositoryStack } from '../lib/repository-stack'
@@ -9,8 +10,11 @@ import { Secret as ECSSecret } from 'aws-cdk-lib/aws-ecs'
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager'
 import { ClusterStack } from '../lib/cluster-stack'
 import { TaskStack } from '../lib/task-stack'
+import { ListenerCondition } from 'aws-cdk-lib/aws-elasticloadbalancingv2'
+import { RecordTarget } from 'aws-cdk-lib/aws-route53'
 
 const app = new App()
+const domain = 'modernartisans.xyz'
 
 const env = {
     account: process.env.CDK_DEFAULT_ACCOUNT,
@@ -19,6 +23,12 @@ const env = {
 
 const networkStack = new NetworkingStack(app, 'NetworkingStack', {
     env,
+})
+
+const distroStack = new DistroStack(app, 'DistroStack', {
+    env,
+    prefix: 'Fargate',
+    domain,
 })
 
 const dbStack = new DatabaseStack(app, 'DatabaseStack', {
@@ -44,7 +54,7 @@ const siteTask = new TaskStack(app, 'SiteStack', {
     env,
     repo: siteRepoStack.repo,
     environment: {
-        WP_HOME: networkStack.loadBalancer.loadBalancerDnsName,
+        WP_HOME: `https://${domain}`,
     },
     secrets: {
         DB_HOST: ECSSecret.fromSecretsManager(dbStack.db.secret!, 'host'),
@@ -132,18 +142,18 @@ const appTask = new TaskStack(app, 'AppStack', {
     env,
     repo: appRepoStack.repo,
     environment: {
-        NODE_ENV: 'http://localhost',
+        NODE_ENV: `https://app.${domain}`,
         APP_LOCALE: 'en',
         APP_DEBUG: 'false',
         APP_ENV: 'staging',
         APP_NAME: 'Laravel',
         APP_FAKER_LOCALE: 'en_US',
-        APP_MAINTENANCE_DRIVER: 'database',
         APP_FALLBACK_LOCALE: 'en',
         DB_CONNECTION: 'mysql',
+        DB_DATABASE: 'app_db',
+        APP_KEY: 'base64:AHia+ZdPQAZH91dERYGJqgFAWJfRDWe40KIEaFPjNrI=', // WARN: Testing purposes, to remove
     },
     secrets: {
-        DB_DATABASE: ECSSecret.fromSecretsManager(dbStack.db.secret!, 'dbname'),
         DB_HOST: ECSSecret.fromSecretsManager(dbStack.db.secret!, 'host'),
         DB_PASSWORD: ECSSecret.fromSecretsManager(
             dbStack.db.secret!,
@@ -154,21 +164,8 @@ const appTask = new TaskStack(app, 'AppStack', {
             dbStack.db.secret!,
             'username'
         ),
-        APP_KEY: ECSSecret.fromSecretsManager(
-            new Secret(appRepoStack, 'APP_KEY', {
-                generateSecretString: {
-                    secretStringTemplate: JSON.stringify({}),
-                    excludePunctuation: true,
-                    includeSpace: false,
-                    passwordLength: 32,
-                    generateStringKey: 'APP_KEY',
-                },
-            })
-        ),
     },
 })
-
-// make a load balancer here
 
 const siteService = new FargateServiceStack(app, 'FargateSiteServiceStack', {
     env,
@@ -177,6 +174,7 @@ const siteService = new FargateServiceStack(app, 'FargateSiteServiceStack', {
     prefix: 'site',
     repo: siteRepoStack.repo,
     taskDefinition: siteTask.taskDefinition,
+    securityGroups: [networkStack.siteSg],
 })
 
 const appService = new FargateServiceStack(app, 'FargateAppServiceStack', {
@@ -186,6 +184,7 @@ const appService = new FargateServiceStack(app, 'FargateAppServiceStack', {
     cluster: clusterStack.cluster,
     taskDefinition: appTask.taskDefinition,
     loadBalancer: networkStack.loadBalancer,
+    securityGroups: [networkStack.appSg],
 })
 
 const listener = networkStack.loadBalancer.addListener('Listener', {
@@ -193,7 +192,45 @@ const listener = networkStack.loadBalancer.addListener('Listener', {
     open: true,
 })
 
-listener.addTargets('SiteTarget', {
+distroStack.setARecord(
+    'SiteLoadBalancer',
+    domain,
+    RecordTarget.fromAlias({
+        bind: () => ({
+            dnsName: networkStack.loadBalancer.loadBalancerDnsName,
+            hostedZoneId:
+                networkStack.loadBalancer.loadBalancerCanonicalHostedZoneId,
+        }),
+    })
+)
+
+distroStack.setARecord(
+    'LoadBalancer',
+    `app.${domain}`,
+    RecordTarget.fromAlias({
+        bind: () => ({
+            dnsName: networkStack.loadBalancer.loadBalancerDnsName,
+            hostedZoneId:
+                networkStack.loadBalancer.loadBalancerCanonicalHostedZoneId,
+        }),
+    })
+)
+
+listener.addTargets('DefaultTarget', {
     port: 80,
     targets: [siteService.service],
+})
+
+listener.addTargets('SiteTarget', {
+    port: 80,
+    conditions: [ListenerCondition.hostHeaders([domain])],
+    targets: [siteService.service],
+    priority: 1,
+})
+
+listener.addTargets('AppTarget', {
+    port: 80,
+    targets: [appService.service],
+    conditions: [ListenerCondition.hostHeaders([`app.${domain}`])],
+    priority: 2,
 })
