@@ -93,8 +93,8 @@ export class NetworkingStack extends Stack {
 
         this.lbSg.addIngressRule(
             Peer.anyIpv4(),
-            Port.tcp(80),
-            'Allow HTTP traffic from anywhere'
+            Port.tcp(443),
+            'Allow HTTPS traffic from anywhere'
         )
 
         // Load balancer

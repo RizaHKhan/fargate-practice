@@ -188,7 +188,7 @@ const appService = new FargateServiceStack(app, 'FargateAppServiceStack', {
 })
 
 const listener = networkStack.loadBalancer.addListener('Listener', {
-    port: 80,
+    port: 443,
     open: true,
 })
 
@@ -217,19 +217,19 @@ distroStack.setARecord(
 )
 
 listener.addTargets('DefaultTarget', {
-    port: 80,
+    port: 443,
     targets: [siteService.service],
 })
 
 listener.addTargets('SiteTarget', {
-    port: 80,
+    port: 443,
     conditions: [ListenerCondition.hostHeaders([domain])],
     targets: [siteService.service],
     priority: 1,
 })
 
 listener.addTargets('AppTarget', {
-    port: 80,
+    port: 443,
     targets: [appService.service],
     conditions: [ListenerCondition.hostHeaders([`app.${domain}`])],
     priority: 2,
