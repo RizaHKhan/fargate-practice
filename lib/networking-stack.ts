@@ -1,4 +1,5 @@
 import { Stack, StackProps } from 'aws-cdk-lib'
+import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager'
 import {
     DefaultInstanceTenancy,
     IpAddresses,
@@ -11,7 +12,13 @@ import {
     Vpc,
 } from 'aws-cdk-lib/aws-ec2'
 import { ApplicationLoadBalancer } from 'aws-cdk-lib/aws-elasticloadbalancingv2'
+import { ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53'
 import { Construct } from 'constructs'
+
+interface NetworkStackProps extends StackProps {
+    prefix: string
+    domain: string
+}
 
 export class NetworkingStack extends Stack {
     vpc: Vpc
@@ -20,9 +27,23 @@ export class NetworkingStack extends Stack {
     appSg: SecurityGroup
     lbSg: SecurityGroup
     loadBalancer: ApplicationLoadBalancer
+    domain: string
+    hostedZone: HostedZone
+    certificate: Certificate
 
-    constructor(scope: Construct, id: string, props?: StackProps) {
+    constructor(scope: Construct, id: string, props: NetworkStackProps) {
         super(scope, id, props)
+
+        this.domain = props.domain
+        this.hostedZone = new HostedZone(this, `${props.prefix}-HZ`, {
+            zoneName: this.domain,
+        })
+
+        this.certificate = new Certificate(this, `${props.prefix}Certificate`, {
+            domainName: this.domain,
+            subjectAlternativeNames: [`*.${this.domain}`],
+            validation: CertificateValidation.fromDns(this.hostedZone),
+        })
 
         this.vpc = new Vpc(this, 'FargateVpc', {
             vpcName: 'FargateNetworkingVpc',
@@ -107,5 +128,13 @@ export class NetworkingStack extends Stack {
                 securityGroup: this.lbSg,
             }
         )
+    }
+
+    setARecord(prefix: string, recordName: string, target: RecordTarget) {
+        new ARecord(this, `${prefix}-ARecord`, {
+            zone: this.hostedZone,
+            recordName,
+            target,
+        })
     }
 }
