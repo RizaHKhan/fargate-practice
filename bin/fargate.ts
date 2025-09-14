@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { App } from 'aws-cdk-lib'
 import 'dotenv/config'
-import { DistroStack } from '../lib/distro-stack'
 import { NetworkingStack } from '../lib/networking-stack'
 import { FargateServiceStack } from '../lib/service-stack'
 import { RepositoryStack } from '../lib/repository-stack'
@@ -22,13 +21,9 @@ const env = {
 }
 
 const networkStack = new NetworkingStack(app, 'NetworkingStack', {
-    env,
-})
-
-const distroStack = new DistroStack(app, 'DistroStack', {
-    env,
     prefix: 'Fargate',
     domain,
+    env,
 })
 
 const dbStack = new DatabaseStack(app, 'DatabaseStack', {
@@ -188,11 +183,12 @@ const appService = new FargateServiceStack(app, 'FargateAppServiceStack', {
 })
 
 const listener = networkStack.loadBalancer.addListener('Listener', {
+    certificates: [networkStack.certificate],
     port: 443,
     open: true,
 })
 
-distroStack.setARecord(
+networkStack.setARecord(
     'SiteLoadBalancer',
     domain,
     RecordTarget.fromAlias({
@@ -204,7 +200,7 @@ distroStack.setARecord(
     })
 )
 
-distroStack.setARecord(
+networkStack.setARecord(
     'LoadBalancer',
     `app.${domain}`,
     RecordTarget.fromAlias({
@@ -217,19 +213,19 @@ distroStack.setARecord(
 )
 
 listener.addTargets('DefaultTarget', {
-    port: 443,
+    port: 80,
     targets: [siteService.service],
 })
 
 listener.addTargets('SiteTarget', {
-    port: 443,
+    port: 80,
     conditions: [ListenerCondition.hostHeaders([domain])],
     targets: [siteService.service],
     priority: 1,
 })
 
 listener.addTargets('AppTarget', {
-    port: 443,
+    port: 80,
     targets: [appService.service],
     conditions: [ListenerCondition.hostHeaders([`app.${domain}`])],
     priority: 2,
