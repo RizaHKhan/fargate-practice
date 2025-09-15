@@ -11,6 +11,7 @@ import { ClusterStack } from '../lib/cluster-stack'
 import { TaskStack } from '../lib/task-stack'
 import { ListenerCondition } from 'aws-cdk-lib/aws-elasticloadbalancingv2'
 import { RecordTarget } from 'aws-cdk-lib/aws-route53'
+import { EventsStack } from '../lib/events-stack'
 
 const app = new App()
 const domain = 'modernartisans.xyz'
@@ -163,23 +164,23 @@ const appTask = new TaskStack(app, 'AppStack', {
 })
 
 const siteService = new FargateServiceStack(app, 'FargateSiteServiceStack', {
-    env,
     cluster: clusterStack.cluster,
+    env,
     loadBalancer: networkStack.loadBalancer,
     prefix: 'site',
     repo: siteRepoStack.repo,
-    taskDefinition: siteTask.taskDefinition,
     securityGroups: [networkStack.siteSg],
+    taskDefinition: siteTask.taskDefinition,
 })
 
 const appService = new FargateServiceStack(app, 'FargateAppServiceStack', {
+    cluster: clusterStack.cluster,
+    env,
+    loadBalancer: networkStack.loadBalancer,
     prefix: 'app',
     repo: appRepoStack.repo,
-    env,
-    cluster: clusterStack.cluster,
-    taskDefinition: appTask.taskDefinition,
-    loadBalancer: networkStack.loadBalancer,
     securityGroups: [networkStack.appSg],
+    taskDefinition: appTask.taskDefinition,
 })
 
 const listener = networkStack.loadBalancer.addListener('Listener', {
@@ -230,3 +231,6 @@ listener.addTargets('AppTarget', {
     conditions: [ListenerCondition.hostHeaders([`app.${domain}`])],
     priority: 2,
 })
+
+
+

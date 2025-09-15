@@ -46,3 +46,9 @@ docker run -d --rm -p 80:80 713287342529.dkr.ecr.us-east-1.amazonaws.com/server:
 | ServiceStack        | ECS Service                         | Uses all above                      |
 
 
+## Database
+
+```bash
+
+mysql -h databasestack-mariadbinstance7ffcd3a5-iw8zmv8aglea.cqbgqsg2iymb.us-east-1.rds.amazonaws.com -P 3306 -u khanr -p
+```
