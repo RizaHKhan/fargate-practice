@@ -7,11 +7,10 @@ import { RepositoryStack } from '../lib/repository-stack'
 import { DatabaseStack } from '../lib/database-stack'
 import { Secret as ECSSecret } from 'aws-cdk-lib/aws-ecs'
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager'
-import { ClusterStack } from '../lib/cluster-stack'
 import { TaskStack } from '../lib/task-stack'
 import { ListenerCondition } from 'aws-cdk-lib/aws-elasticloadbalancingv2'
 import { RecordTarget } from 'aws-cdk-lib/aws-route53'
-import { EventsStack } from '../lib/events-stack'
+import { WebStack } from '../lib/web-stack'
 
 const app = new App()
 const domain = 'modernartisans.xyz'
@@ -33,17 +32,25 @@ const dbStack = new DatabaseStack(app, 'DatabaseStack', {
     securityGroup: networkStack.dbSecurityGroup,
 })
 
-const clusterStack = new ClusterStack(app, 'ClusterStack', {
+// -- WebStack
+// const clusterStack = new ClusterStack(app, 'ClusterStack', {
+//     vpc: networkStack.vpc,
+//     prefix: 'Fargate',
+//     env,
+// })
+const webStack = new WebStack(app, 'WebStack', {
     vpc: networkStack.vpc,
-    prefix: 'Fargate',
+    prefix: 'ModernArtisans',
     env,
+    domain
+    db: dbStack.db
 })
 
-const siteRepoStack = new RepositoryStack(app, 'SiteRepositoryStack', {
-    env,
-    name: 'FargateSiteRepository',
-    repoName: 'site',
-})
+// const siteRepoStack = new RepositoryStack(app, 'SiteRepositoryStack', {
+//     env,
+//     name: 'FargateSiteRepository',
+//     repoName: 'site',
+// })
 
 const siteTask = new TaskStack(app, 'SiteStack', {
     prefix: 'Site',
@@ -231,6 +238,4 @@ listener.addTargets('AppTarget', {
     conditions: [ListenerCondition.hostHeaders([`app.${domain}`])],
     priority: 2,
 })
-
-
-
+// 

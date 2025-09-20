@@ -118,7 +118,6 @@ export class NetworkingStack extends Stack {
             'Allow HTTPS traffic from anywhere'
         )
 
-        // Load balancer
         this.loadBalancer = new ApplicationLoadBalancer(
             this,
             'FargateApplicationLoadBalancer',
